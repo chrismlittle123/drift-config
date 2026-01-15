@@ -1,94 +1,14 @@
 # Drift Configuration for chrismlittle123
-# This config enforces coding standards across all repositories
+# Simple check for check.toml file
 
 # Repositories to exclude from scanning
 exclude:
   - "drift-config" # This repo
   - "chrismlittle123" # Profile README repo
+  - "check-my-toolkit-registry-community" # Registry repo
   - "*-template" # Template repos
   - "*.github.io" # GitHub Pages repos
 
-integrity:
-  # ===========================================
-  # DISCOVER FILES (no strict enforcement)
-  # ===========================================
-  discover:
-    # Find workflow files for visibility
-    - pattern: ".github/workflows/*.yml"
-      suggestion: "Workflow file detected - ensure it follows security best practices"
-
-    # Find config files that might need standardizing
-    - pattern: "*.config.js"
-      suggestion: "Config file detected - consider aligning with org standards"
-
-    - pattern: "*.config.ts"
-      suggestion: "Config file detected - consider aligning with org standards"
-
-# ===========================================
-# SCANS - Security, Required Files, Tooling
-# ===========================================
 scans:
-  # --- Security Scans ---
-  # Note: For secrets detection, use gitleaks in your CI pipeline
-  # This config focuses on structural/config checks
-
-  - name: no-env-files-committed
-    command: |
-      ! ls .env .env.local .env.production .env.*.local 2>/dev/null | grep -q .
-    timeout: 10
-
-  # --- Required Files ---
-  - name: has-readme
-    command: test -f README.md
-
-  - name: has-license
-    command: test -f LICENSE || test -f LICENSE.md || test -f LICENSE.txt
-
-  - name: has-gitignore
-    command: test -f .gitignore
-
-  # --- TypeScript Project Standards ---
-  - name: has-typescript-config
-    command: test -f tsconfig.json
-    if: package.json
-
-  - name: has-linting
-    command: |
-      test -f eslint.config.js || test -f .eslintrc.js || test -f .eslintrc.json || \
-      test -f .eslintrc || test -f biome.json || test -f deno.json
-    if: package.json
-
-  - name: has-formatting
-    command: |
-      test -f .prettierrc || test -f .prettierrc.json || test -f prettier.config.js || \
-      test -f .prettierrc.js || test -f biome.json || test -f deno.json
-    if: package.json
-
-  # --- Package.json Checks ---
-  - name: has-package-lock
-    command: test -f package-lock.json || test -f yarn.lock || test -f pnpm-lock.yaml || test -f bun.lockb
-    if: package.json
-
-  - name: no-critical-vulnerabilities
-    command: |
-      if [ -f package-lock.json ]; then
-        CRITICAL=$(npm audit --json 2>/dev/null | jq -r '.metadata.vulnerabilities.critical // 0')
-        if [ "$CRITICAL" -gt 0 ]; then
-          echo "Found $CRITICAL critical vulnerabilities"
-          exit 1
-        fi
-      fi
-      echo "No critical vulnerabilities"
-    if: package-lock.json
-    timeout: 120
-
-  # --- Python Project Standards ---
-  - name: has-python-deps
-    command: test -f requirements.txt || test -f pyproject.toml || test -f setup.py || test -f Pipfile
-    if: "*.py"
-
-  # --- Terraform Standards ---
-  - name: terraform-fmt-check
-    command: terraform fmt -check -recursive 2>/dev/null || echo "terraform not installed or no tf files"
-    if: "*.tf"
-    timeout: 60
+  - name: has-check-toml
+    command: test -f check.toml
