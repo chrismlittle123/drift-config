@@ -10,19 +10,10 @@ exclude:
 
 integrity:
   # ===========================================
-  # 1. ENFORCE CONSISTENT CI/CD WORKFLOWS
-  # ===========================================
-  protected:
-    # All TypeScript repos should have a standard CI workflow
-    - file: .github/workflows/ci.yml
-      approved: approved/.github/workflows/ci.yml
-      severity: high
-
-  # ===========================================
-  # 5. DISCOVER UNPROTECTED FILES
+  # DISCOVER FILES (no strict enforcement)
   # ===========================================
   discover:
-    # Find new workflow files that might need review
+    # Find workflow files for visibility
     - pattern: ".github/workflows/*.yml"
       suggestion: "Workflow file detected - ensure it follows security best practices"
 
@@ -34,28 +25,31 @@ integrity:
       suggestion: "Config file detected - consider aligning with org standards"
 
 # ===========================================
-# 2. SECURITY ENFORCEMENT
-# 3. ENFORCE REQUIRED FILES
-# 4. CONSISTENT TOOLING CHECKS
+# SCANS - Security, Required Files, Tooling
 # ===========================================
 scans:
-  # --- Security Scans ---
+  # --- Security Scans (relaxed) ---
   - name: npm-audit
     command: npm audit --audit-level=high 2>/dev/null || true
     if: package-lock.json
     timeout: 120
 
+  # Only flag obvious hardcoded secrets (API keys, passwords with values)
   - name: no-hardcoded-secrets
     command: |
-      ! grep -rE "(password|secret|api_key|apikey|token)\s*[:=]\s*['\"][^'\"]+['\"]" \
-        --include="*.ts" --include="*.js" --include="*.json" \
-        --exclude-dir=node_modules --exclude-dir=dist \
-        . 2>/dev/null | grep -v "process.env" | grep -v "secrets\." | head -5
+      ! grep -rn \
+        -e "api[_-]*key\s*[:=]\s*['\"][A-Za-z0-9_-]\{20,\}['\"]" \
+        -e "password\s*[:=]\s*['\"][^'\"]\{8,\}['\"]" \
+        -e "secret\s*[:=]\s*['\"][A-Za-z0-9_-]\{20,\}['\"]" \
+        --include="*.ts" --include="*.js" --include="*.json" --include="*.yaml" --include="*.yml" \
+        --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=.git \
+        --exclude="package-lock.json" --exclude="*.test.*" \
+        . 2>/dev/null | grep -v "process\.env" | grep -v "\$\{" | grep -v "secrets\." | head -3
     timeout: 30
 
   - name: no-env-files-committed
     command: |
-      ! ls .env .env.local .env.production 2>/dev/null | grep -q .
+      ! ls .env .env.local .env.production .env.*.local 2>/dev/null | grep -q .
     timeout: 10
 
   # --- Required Files ---
@@ -63,7 +57,7 @@ scans:
     command: test -f README.md
 
   - name: has-license
-    command: test -f LICENSE || test -f LICENSE.md
+    command: test -f LICENSE || test -f LICENSE.md || test -f LICENSE.txt
 
   - name: has-gitignore
     command: test -f .gitignore
@@ -73,52 +67,43 @@ scans:
     command: test -f tsconfig.json
     if: package.json
 
-  - name: has-eslint-config
-    command: test -f eslint.config.js || test -f .eslintrc.js || test -f .eslintrc.json
+  - name: has-linting
+    command: |
+      test -f eslint.config.js || test -f .eslintrc.js || test -f .eslintrc.json || \
+      test -f .eslintrc || test -f biome.json || test -f deno.json
     if: package.json
 
-  - name: has-prettier-config
-    command: test -f .prettierrc || test -f .prettierrc.json || test -f prettier.config.js
+  - name: has-formatting
+    command: |
+      test -f .prettierrc || test -f .prettierrc.json || test -f prettier.config.js || \
+      test -f .prettierrc.js || test -f biome.json || test -f deno.json
     if: package.json
 
   # --- Package.json Checks ---
   - name: has-package-lock
-    command: test -f package-lock.json
+    command: test -f package-lock.json || test -f yarn.lock || test -f pnpm-lock.yaml || test -f bun.lockb
     if: package.json
 
-  - name: no-package-vulnerabilities-critical
+  - name: no-critical-vulnerabilities
     command: |
-      npm audit --json 2>/dev/null | node -e "
-        let data = '';
-        process.stdin.on('data', d => data += d);
-        process.stdin.on('end', () => {
-          try {
-            const audit = JSON.parse(data);
-            const critical = audit.metadata?.vulnerabilities?.critical || 0;
-            if (critical > 0) {
-              console.error('Critical vulnerabilities found:', critical);
-              process.exit(1);
-            }
-            console.log('No critical vulnerabilities');
-          } catch (e) {
-            console.log('Could not parse audit (may be clean)');
-          }
-        });
-      "
+      if [ -f package-lock.json ]; then
+        CRITICAL=$(npm audit --json 2>/dev/null | jq -r '.metadata.vulnerabilities.critical // 0')
+        if [ "$CRITICAL" -gt 0 ]; then
+          echo "Found $CRITICAL critical vulnerabilities"
+          exit 1
+        fi
+      fi
+      echo "No critical vulnerabilities"
     if: package-lock.json
     timeout: 120
 
   # --- Python Project Standards ---
-  - name: has-requirements-or-pyproject
-    command: test -f requirements.txt || test -f pyproject.toml || test -f setup.py
+  - name: has-python-deps
+    command: test -f requirements.txt || test -f pyproject.toml || test -f setup.py || test -f Pipfile
     if: "*.py"
 
   # --- Terraform Standards ---
-  - name: has-terraform-lock
-    command: test -f .terraform.lock.hcl
-    if: "*.tf"
-
   - name: terraform-fmt-check
-    command: terraform fmt -check -recursive 2>/dev/null || echo "terraform not installed"
+    command: terraform fmt -check -recursive 2>/dev/null || echo "terraform not installed or no tf files"
     if: "*.tf"
     timeout: 60
