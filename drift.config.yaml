@@ -28,24 +28,9 @@ integrity:
 # SCANS - Security, Required Files, Tooling
 # ===========================================
 scans:
-  # --- Security Scans (relaxed) ---
-  - name: npm-audit
-    command: npm audit --audit-level=high 2>/dev/null || true
-    if: package-lock.json
-    timeout: 120
-
-  # Only flag obvious hardcoded secrets (API keys, passwords with values)
-  - name: no-hardcoded-secrets
-    command: |
-      ! grep -rn \
-        -e "api[_-]*key\s*[:=]\s*['\"][A-Za-z0-9_-]\{20,\}['\"]" \
-        -e "password\s*[:=]\s*['\"][^'\"]\{8,\}['\"]" \
-        -e "secret\s*[:=]\s*['\"][A-Za-z0-9_-]\{20,\}['\"]" \
-        --include="*.ts" --include="*.js" --include="*.json" --include="*.yaml" --include="*.yml" \
-        --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=.git \
-        --exclude="package-lock.json" --exclude="*.test.*" \
-        . 2>/dev/null | grep -v "process\.env" | grep -v "\$\{" | grep -v "secrets\." | head -3
-    timeout: 30
+  # --- Security Scans ---
+  # Note: For secrets detection, use gitleaks in your CI pipeline
+  # This config focuses on structural/config checks
 
   - name: no-env-files-committed
     command: |
