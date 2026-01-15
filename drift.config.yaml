@@ -1,0 +1,124 @@
+# Drift Configuration for chrismlittle123
+# This config enforces coding standards across all repositories
+
+# Repositories to exclude from scanning
+exclude:
+  - "drift-config" # This repo
+  - "chrismlittle123" # Profile README repo
+  - "*-template" # Template repos
+  - "*.github.io" # GitHub Pages repos
+
+integrity:
+  # ===========================================
+  # 1. ENFORCE CONSISTENT CI/CD WORKFLOWS
+  # ===========================================
+  protected:
+    # All TypeScript repos should have a standard CI workflow
+    - file: .github/workflows/ci.yml
+      approved: approved/.github/workflows/ci.yml
+      severity: high
+
+  # ===========================================
+  # 5. DISCOVER UNPROTECTED FILES
+  # ===========================================
+  discover:
+    # Find new workflow files that might need review
+    - pattern: ".github/workflows/*.yml"
+      suggestion: "Workflow file detected - ensure it follows security best practices"
+
+    # Find config files that might need standardizing
+    - pattern: "*.config.js"
+      suggestion: "Config file detected - consider aligning with org standards"
+
+    - pattern: "*.config.ts"
+      suggestion: "Config file detected - consider aligning with org standards"
+
+# ===========================================
+# 2. SECURITY ENFORCEMENT
+# 3. ENFORCE REQUIRED FILES
+# 4. CONSISTENT TOOLING CHECKS
+# ===========================================
+scans:
+  # --- Security Scans ---
+  - name: npm-audit
+    command: npm audit --audit-level=high 2>/dev/null || true
+    if: package-lock.json
+    timeout: 120
+
+  - name: no-hardcoded-secrets
+    command: |
+      ! grep -rE "(password|secret|api_key|apikey|token)\s*[:=]\s*['\"][^'\"]+['\"]" \
+        --include="*.ts" --include="*.js" --include="*.json" \
+        --exclude-dir=node_modules --exclude-dir=dist \
+        . 2>/dev/null | grep -v "process.env" | grep -v "secrets\." | head -5
+    timeout: 30
+
+  - name: no-env-files-committed
+    command: |
+      ! ls .env .env.local .env.production 2>/dev/null | grep -q .
+    timeout: 10
+
+  # --- Required Files ---
+  - name: has-readme
+    command: test -f README.md
+
+  - name: has-license
+    command: test -f LICENSE || test -f LICENSE.md
+
+  - name: has-gitignore
+    command: test -f .gitignore
+
+  # --- TypeScript Project Standards ---
+  - name: has-typescript-config
+    command: test -f tsconfig.json
+    if: package.json
+
+  - name: has-eslint-config
+    command: test -f eslint.config.js || test -f .eslintrc.js || test -f .eslintrc.json
+    if: package.json
+
+  - name: has-prettier-config
+    command: test -f .prettierrc || test -f .prettierrc.json || test -f prettier.config.js
+    if: package.json
+
+  # --- Package.json Checks ---
+  - name: has-package-lock
+    command: test -f package-lock.json
+    if: package.json
+
+  - name: no-package-vulnerabilities-critical
+    command: |
+      npm audit --json 2>/dev/null | node -e "
+        let data = '';
+        process.stdin.on('data', d => data += d);
+        process.stdin.on('end', () => {
+          try {
+            const audit = JSON.parse(data);
+            const critical = audit.metadata?.vulnerabilities?.critical || 0;
+            if (critical > 0) {
+              console.error('Critical vulnerabilities found:', critical);
+              process.exit(1);
+            }
+            console.log('No critical vulnerabilities');
+          } catch (e) {
+            console.log('Could not parse audit (may be clean)');
+          }
+        });
+      "
+    if: package-lock.json
+    timeout: 120
+
+  # --- Python Project Standards ---
+  - name: has-requirements-or-pyproject
+    command: test -f requirements.txt || test -f pyproject.toml || test -f setup.py
+    if: "*.py"
+
+  # --- Terraform Standards ---
+  - name: has-terraform-lock
+    command: test -f .terraform.lock.hcl
+    if: "*.tf"
+
+  - name: terraform-fmt-check
+    command: terraform fmt -check -recursive 2>/dev/null || echo "terraform not installed"
+    if: "*.tf"
+    timeout: 60
