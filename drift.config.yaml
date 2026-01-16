@@ -1,5 +1,11 @@
 # Drift Configuration for chrismlittle123
 
+# Schema for validating repo-metadata.yaml files
+schema:
+  tiers:
+    - production
+    - internal
+
 # Repositories to exclude from scanning
 exclude:
   - "drift-config"
