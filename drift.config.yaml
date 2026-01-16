@@ -27,9 +27,9 @@ scans:
   - name: no-env-files
     command: "! ls .env .env.local .env.production 2>/dev/null | grep -q ."
 
-  # Node.js projects must use pnpm
-  - name: has-pnpm-lock
-    command: test -f pnpm-lock.yaml
+  # Node.js projects must have a lock file
+  - name: has-lockfile
+    command: test -f package-lock.json || test -f yarn.lock || test -f pnpm-lock.yaml || test -f bun.lockb
     if: package.json
 
   # --- CODEOWNERS Protection ---
