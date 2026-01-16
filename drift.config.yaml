@@ -31,3 +31,17 @@ scans:
   - name: has-pnpm-lock
     command: test -f pnpm-lock.yaml
     if: package.json
+
+  # --- CODEOWNERS Protection ---
+  # Verify CODEOWNERS exists
+  - name: has-codeowners
+    command: test -f .github/CODEOWNERS || test -f CODEOWNERS || test -f docs/CODEOWNERS
+
+  # Verify CODEOWNERS protects critical files
+  - name: codeowners-protects-check-toml
+    command: grep -q "check.toml" .github/CODEOWNERS
+    if: .github/CODEOWNERS
+
+  - name: codeowners-protects-eslint
+    command: grep -qE "eslint|\.eslintrc" .github/CODEOWNERS
+    if: .github/CODEOWNERS
