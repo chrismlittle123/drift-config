@@ -4,7 +4,7 @@
 exclude:
   - "drift-config"
   - "chrismlittle123"
-  - "check-my-toolkit-registry-community"
+  - "standards-community"
   - "*-template"
   - "*.github.io"
 
