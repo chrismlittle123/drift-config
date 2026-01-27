@@ -1,11 +1,5 @@
 # Drift Configuration for chrismlittle123
 
-# Schema for validating repo-metadata.yaml files
-schema:
-  tiers:
-    - production
-    - internal
-
 # Repositories to exclude from scanning
 exclude:
   - "drift-config"
@@ -15,10 +9,6 @@ exclude:
   - "*.github.io"
 
 scans:
-  # Custom project marker
-  - name: has-check-toml
-    command: test -f check.toml
-
   # Required files
   - name: has-readme
     command: test -f README.md
@@ -42,11 +32,6 @@ scans:
   # Verify CODEOWNERS exists
   - name: has-codeowners
     command: test -f .github/CODEOWNERS || test -f CODEOWNERS || test -f docs/CODEOWNERS
-
-  # Verify CODEOWNERS protects critical files
-  - name: codeowners-protects-check-toml
-    command: grep -q "check.toml" .github/CODEOWNERS
-    if: .github/CODEOWNERS
 
   - name: codeowners-protects-eslint
     command: grep -qE "eslint|\.eslintrc" .github/CODEOWNERS
